@@ -88,7 +88,7 @@ class SynowModel:
         return read_data(_temp_synthetic_fn)
 
     def fit(self, obs_data: np.ndarray, wave_range: tuple, feature: str,
-            feat_params: list, feat_param_ranges: list):
+            feat_params: list, feat_bounds: list):
         spex = Spextractor(obs_data)
         spex.create_model(downsampling=3)
 
@@ -121,8 +121,8 @@ class SynowModel:
             return model_flux
 
         p0 = [self._features[feature][param] for param in feat_params]
-        bound_lower = [f[0] for f in feat_param_ranges]
-        bound_upper = [f[1] for f in feat_param_ranges]
+        bound_lower = [f[0] for f in feat_bounds]
+        bound_upper = [f[1] for f in feat_bounds]
         bounds = (bound_lower, bound_upper)
         params, cov = curve_fit(_fit_function, wave_fit, obs_flux,
                                 p0=p0, bounds=bounds)
