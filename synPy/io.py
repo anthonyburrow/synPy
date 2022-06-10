@@ -15,6 +15,12 @@ def read_data(fn, z=None, wave_range=None, normalize=True):
 
     # Normalize
     if normalize:
-        data[:, 1] /= data[:, 1].max()
+        max_flux = data[:, 1].max()
+        data[:, 1] /= max_flux
+
+        try:
+            data[:, 2] /= max_flux
+        except IndexError:
+            pass
 
     return data
