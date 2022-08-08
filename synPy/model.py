@@ -78,18 +78,9 @@ class SynowModel:
         for key, value in kwargs.items():
             self._features[label][key] = value
 
-    def _run_synow_and_retrieve(self):
-        self.save(_temp_run_script, temp=True)
-
-        subprocess.run(f'chmod +x {_temp_run_script}', shell=True, check=True)
-        subprocess.run(f'./{_temp_run_script}', shell=True, check=True,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-        return read_data(_temp_synthetic_fn)
-
     def fit(self, obs_data: np.ndarray, wave_range: tuple, feature: str,
             feat_params: list, feat_bounds: list):
-        spex = Spextractor(obs_data)
+        spex = Spextractor(obs_data, wave_range=wave_range)
         spex.create_model(downsampling=3)
 
         print(f'\nAttempting to fit {feature}...')
@@ -104,7 +95,7 @@ class SynowModel:
         def _fit_function(wave_fit, *args):
             ''' Wrapper function to align keys + arguments and rerun synow '''
             # Change parameters
-            new_params = { name : arg for name, arg in zip(feat_params, args) }
+            new_params = {name: arg for name, arg in zip(feat_params, args)}
             self.add(feature, **new_params)
             print(f'iter = {self._fit_counter} | {new_params}')
 
@@ -127,18 +118,27 @@ class SynowModel:
         params, cov = curve_fit(_fit_function, wave_fit, obs_flux,
                                 p0=p0, bounds=bounds)
 
-        params_txt = {name : value for name, value in zip(feat_params, params)}
+        params_txt = {name: value for name, value in zip(feat_params, params)}
         print(f'\nUpdated new model parameters: {params_txt}\n')
 
         self._fit_counter = 1
 
-    def save(self, out_script: str = 'runsynow_gen.sh', temp=False):
-        script_str = self._generate_script_string(temp=temp)
+    def save(self, out_script: str = 'runsynow_gen.sh', *args, **kwargs):
+        script_str = self._generate_script_string(*args, **kwargs)
 
         with open(out_script, 'w') as file:
             file.write(script_str)
 
-    def _generate_script_string(self, temp=False):
+    def _run_synow_and_retrieve(self):
+        self.save(_temp_run_script, temp=True)
+
+        subprocess.run(f'chmod +x {_temp_run_script}', shell=True, check=True)
+        subprocess.run(f'./{_temp_run_script}', shell=True, check=True,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        return read_data(_temp_synthetic_fn)
+
+    def _generate_script_string(self, temp=False, *args, **kwargs):
         script = (
             f"#!/bin/bash"
             f"\n"
