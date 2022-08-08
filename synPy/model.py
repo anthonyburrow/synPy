@@ -127,12 +127,12 @@ class SynowModel:
         params, cov = curve_fit(_fit_function, wave_fit, obs_flux,
                                 p0=p0, bounds=bounds)
 
-        params_txt = { name : value for name, value in zip(feat_params, params) }
+        params_txt = {name : value for name, value in zip(feat_params, params)}
         print(f'\nUpdated new model parameters: {params_txt}\n')
 
         self._fit_counter = 1
 
-    def save(self, out_script: str='runsynow_gen.sh', temp=False):
+    def save(self, out_script: str = 'runsynow_gen.sh', temp=False):
         script_str = self._generate_script_string(temp=temp)
 
         with open(out_script, 'w') as file:
@@ -177,7 +177,7 @@ class SynowModel:
                 value_string = len(self._features)
 
             script += f"    {key.ljust(20)} = {value_string},\n"
-        
+
         script += '\n'
 
         for key in _default_feature:
