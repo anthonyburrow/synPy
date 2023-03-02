@@ -48,11 +48,16 @@ _default_feature = {
 
 class SynowModel:
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        '''Initialize with Spextractor read arguments'''
         self._params = dict(_default_params)
         self._features = {}
 
         self._fit_counter = 1
+
+        # Setup GPR model for fitting
+        self._spex = self._setup_spex(*args, **kwargs)
+        self.data = self._spex.data
 
     @property
     def params(self):
@@ -78,19 +83,20 @@ class SynowModel:
         for key, value in kwargs.items():
             self._features[label][key] = value
 
-    def fit(self, obs_data: np.ndarray, wave_range: tuple, feature: str,
-            feat_params: list, feat_bounds: list):
-        spex = Spextractor(obs_data, wave_range=wave_range)
-        spex.create_model(downsampling=3)
-
+    def fit(self, wave_range: tuple, feature: str, feat_params: list,
+            feat_bounds: list):
         print(f'\nAttempting to fit {feature}...')
+
+        if wave_range[0] < self._spex.wave[0] or \
+           wave_range[1] > self._spex.wave[-1]:
+            print('WARNING: Attempting to fit outside range of observation')
 
         # Gets the same wavelength points as initial synow model
         wave_fit = self._run_synow_and_retrieve()[:, 0]
         wave_mask = (wave_range[0] <= wave_fit) & (wave_fit <= wave_range[1])
         wave_fit = wave_fit[wave_mask]
 
-        obs_flux, _ = spex.predict(wave_fit)
+        obs_flux, _ = self._spex.predict(wave_fit)
 
         def _fit_function(wave_fit, *args):
             ''' Wrapper function to align keys + arguments and rerun synow '''
@@ -100,7 +106,8 @@ class SynowModel:
             print(f'iter = {self._fit_counter} | {new_params}')
 
             # Rerun synow
-            model_data = self._run_synow_and_retrieve()
+            self._run_synow(_temp_synthetic_fn, temp=True)
+            model_data = read_data(_temp_synthetic_fn)
             model_data = model_data[wave_mask]
             model_flux = model_data[:, 1]
 
@@ -123,20 +130,37 @@ class SynowModel:
 
         self._fit_counter = 1
 
-    def save(self, out_script: str = 'runsynow_gen.sh', *args, **kwargs):
+    def write_script(self, out_script: str = None, *args, **kwargs):
+        if out_script is None:
+            out_script = 'runsynow_gen.sh'
+
         script_str = self._generate_script_string(*args, **kwargs)
 
         with open(out_script, 'w') as file:
             file.write(script_str)
 
-    def _run_synow_and_retrieve(self):
-        self.save(_temp_run_script, temp=True)
+        return out_script
 
-        subprocess.run(f'chmod +x {_temp_run_script}', shell=True, check=True)
-        subprocess.run(f'./{_temp_run_script}', shell=True, check=True,
+    def get_synth(self, spectrum_file=None):
+        '''Runs Synow, generates and returns a current synthetic spectrum.'''
+        if spectrum_file is None:
+            spectrum_file = self._params['spectrum_file']
+        self._run_synow(temp=False)
+
+        return read_data(spectrum_file)
+
+    def _setup_spex(self, *args, **kwargs):
+        spex = Spextractor(*args, **kwargs)
+        spex.create_model(downsampling=3)
+
+        return spex
+
+    def _run_synow(self, *args, **kwargs):
+        out_script = self.write_script(*args, **kwargs)
+
+        subprocess.run(f'chmod +x {out_script}', shell=True, check=True)
+        subprocess.run(f'./{out_script}', shell=True, check=True,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-        return read_data(_temp_synthetic_fn)
 
     def _generate_script_string(self, temp=False, *args, **kwargs):
         script = (
