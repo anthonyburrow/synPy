@@ -18,22 +18,25 @@ global_params = {
     'eb'                   : 9000.0,
 }
 
-# SynowModel takes in Spextractor read arguments for fitting
+# SynowModel takes in Spextractor read arguments for fitting:
+# e.g. z, E_BV (for MW extinction), wave_range, etc.
 read_params = {
     'data': 'SN2023bvj_gr4_NOT_AL_20230221.fits',
     'z': 0.00512
 }
 
-# This instantiates the model for fitting to a spectrum you give it via read_params
+# This instantiates the model for fitting to a spectrum you give it via
+# read_params
 model = SynowModel(**read_params)
 
-# Otherwise the default global parameters are used
-# (you don't need to have them all in global_params, just the ones you want to change)
+# Apply the global_params, otherwise the default global parameters are used
+# (you don't need to have them all in global_params, just the ones you want
+# to change).
 model.set_params(**global_params)
 
-# Add features to include in model (parameters you don't give go to default values).
-# These labels (e.g. 'H I') can be anything you want and are only meant as a reference
-# to the fitting below.
+# Add features to include in model (parameters you don't give go to default
+# values). These labels (e.g. 'H I') can be anything you want and are only
+# meant as a reference to the fitting below.
 feature = { 'an' : 1, 'ai' : 0, 'tau1' : 20., 'vmine' : 5, 'vmaxe' : 40,
             've' : 3.0 }
 model.add('H I', **feature)
@@ -42,8 +45,9 @@ feature = { 'an' : 6, 'ai' : 1, 'tau1' : 3, 'vmine' : 5, 'vmaxe' : 40,
             've' : 1.0 }
 model.add('C II', **feature)
 
-# Fits the parameters (feat_params) of the "feature" such that least squares
-# is minimized within the wave_range compared to the observed spectrum
+# Fit the parameters ('feat_params') of the 'feature' such that least squares
+# is minimized within the 'wave_range' specified between the observed spectrum
+# and the model
 fit_params = {
     'wave_range': (6000., 6900.),
     'feature': 'H I',
@@ -57,12 +61,20 @@ fit_params = {
     ]
 }
 
-# model.fit(**fit_params)
+model.fit(**fit_params)
 
 # At any time you can generate a script based on current/optimized parameters
 model.write_script()
 
-# Generate a current script, run it, save to spectrum_file, and return the results
+# You can of course start fitting another feature afterward, though this will
+# possibly change how well the model fits the previously fit feature(s)
+
+# fit_params = { 'feature': 'C II', ... }
+# model.fit(**fit_params)
+
+# This method generates a current script, runs it, saves to 'spectrum_file'
+# specified in global_params, and returns the results (i.e. it's good as a
+# "finalizing" function)
 data_synth = model.get_synth()
 
 
